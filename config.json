@@ -1,0 +1,14 @@
+{
+  "token": "MTA4MTQzNzI1OTE1NDM0MTkxMA.GC-ofQ.w5J8vGS1hX-8iGspAz5UZYgLBIG-Oxhjs1ISos",
+  "join_message": "I have joined to do stuff 🌟",
+  "owners": [
+    398102475300798465
+  ],
+  "prefix": [
+    "$"
+  ],
+  "playing": "$help for command",
+  "playing_type": "playing|watching|listening",
+  "status_type": "online|idle|dnd",
+  "version": "1.0.1"
+}
