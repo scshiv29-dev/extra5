@@ -1,0 +1,52 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  binaryTargets = ["native"]
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model Database {
+  id                           String                         @id @default(cuid())
+  name                         String
+  publicPort                   Int?
+  defaultDatabase              String?
+  type                         String?
+  version                      String?
+  dbUser                       String?
+  dbUserPassword               String?
+  rootUser                     String?
+  rootUserPassword             String?
+  destinationDockerId          String?
+  createdAt                    DateTime                       @default(now())
+  updatedAt                    DateTime                       @updatedAt
+  settings                     DatabaseSettings?
+  databaseSecret               DatabaseSecret[]
+}
+
+model DatabaseSecret {
+  id         String   @id @default(cuid())
+  name       String
+  value      String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  databaseId String
+  database   Database @relation(fields: [databaseId], references: [id])
+
+  @@unique([name, databaseId])
+}
+
+model DatabaseSettings {
+  id         String   @id @default(cuid())
+  databaseId String   @unique
+  isPublic   Boolean  @default(false)
+  appendOnly Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  database   Database @relation(fields: [databaseId], references: [id])
+}

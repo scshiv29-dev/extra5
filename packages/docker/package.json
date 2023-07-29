@@ -1,0 +1,17 @@
+{
+  "name": "docker",
+  "version": "1.0.0",
+  "main": "index.ts",
+  "license": "MIT",
+  "dependencies": {
+    "@prisma/client": "^5.0.0",
+    "@types/dockerode": "^3.3.19",
+    "dockerode": "^3.3.5",
+    "execa": "^7.2.0",
+    "nanoid": "^4.0.2",
+    "prisma": "^5.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.4.5"
+  }
+}
