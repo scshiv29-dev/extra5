@@ -1,5 +1,5 @@
 {
-  "name": "storefront",
+  "name": "@flexidb/web",
   "version": "0.0.0",
   "private": true,
   "scripts": {
@@ -14,7 +14,9 @@
     "next": "^13.4.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "ui": "*"
+    "ui": "*",
+    "@flexidb/api":"*",
+    "@flexidb/config": "*"
   },
   "devDependencies": {
     "@types/jest": "^26.0.22",
@@ -24,5 +26,6 @@
     "eslint-config-custom": "*",
     "tsconfig": "*",
     "typescript": "^4.8.3"
+ 
   }
 }

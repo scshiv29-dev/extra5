@@ -1,5 +1,5 @@
 {
-  "name": "docker",
+  "name": "@flexidb/docker",
   "version": "1.0.0",
   "main": "index.ts",
   "license": "MIT",
@@ -9,7 +9,8 @@
     "dockerode": "^3.3.5",
     "execa": "^7.2.0",
     "nanoid": "^4.0.2",
-    "prisma": "^5.0.0"
+    "prisma": "^5.0.0",
+    "@flexidb/prisma":"*"
   },
   "devDependencies": {
     "@types/node": "^20.4.5"

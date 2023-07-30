@@ -1,5 +1,5 @@
 import "./styles.css";
-
+import {Navbar} from "ui";
 export default function RootLayout({
   children,
 }: {
@@ -7,6 +7,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
+      <Navbar />
       <body>{children}</body>
     </html>
   );
