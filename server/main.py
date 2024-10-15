@@ -8,6 +8,7 @@ from typing import Optional, Dict, Any
 import socket
 from models import Setting, DatabaseInstance
 from database import SessionLocal, engine , Base
+from urllib.parse import quote_plus
 
 # Create the database tables
 Base.metadata.create_all(bind=engine)
@@ -195,11 +196,37 @@ def list_databases(db: Session = Depends(get_db)):
         })
     return result
 
+def construct_connection_url(db_instance: DatabaseInstance) -> Dict[str, str]:
+    username = quote_plus(db_instance.username)
+    password = quote_plus(db_instance.password)
+    host = db_instance.host
+    port = db_instance.port
+    database = db_instance.database
+
+    if db_instance.db_type.lower() == "mysql":
+        url = f"mysql://{username}:{password}@{host}:{port}/{database}"
+    elif db_instance.db_type.lower() == "mariadb":
+        url = f"mysql://{username}:{password}@{host}:{port}/{database}"
+    elif db_instance.db_type.lower() == "mongodb":
+        url = f"mongodb://{username}:{password}@{host}:{port}/{database}"
+    elif db_instance.db_type.lower() == "postgres":
+        url = f"postgres://{username}:{password}@{host}:{port}/{database}"
+    elif db_instance.db_type.lower() == "redis":
+        url = f"redis://:{password}@{host}:{port}/{database}"
+    else:
+        raise ValueError(f"Unsupported database type: {db_instance.db_type}")
+
+    return {"CONNECTION_URL": url}
+
 @app.get("/databases/{name}")
 def get_database(name: str, db: Session = Depends(get_db)):
     db_instance = db.query(DatabaseInstance).filter(DatabaseInstance.name == name).first()
     if db_instance is None:
         raise HTTPException(status_code=404, detail="Database not found")
+    try:
+        env_vars = construct_connection_url(db_instance)
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
     return {
         "id": db_instance.id,
         "name": db_instance.name,
@@ -208,7 +235,7 @@ def get_database(name: str, db: Session = Depends(get_db)):
         "internal_port": db_instance.internal_port,
         "status": db_instance.status,
         "created_at": db_instance.created_at,
-        "env_vars": db_instance.env_vars  # Added env_vars to the response
+        "env_vars": env_vars  # Updated to include formatted connection URL
     }
 
 @app.delete("/databases/{name}")

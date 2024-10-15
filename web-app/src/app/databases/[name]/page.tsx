@@ -93,16 +93,6 @@ export default function DatabasePage() {
     }
   }
 
-  const handleEnvVarChange = (key: string, value: string) => {
-    setUpdateRequest(prev => ({
-      ...prev,
-      new_env_vars: {
-        ...prev.new_env_vars,
-        [key]: value
-      }
-    }))
-  }
-
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text)
     toast({
@@ -112,7 +102,6 @@ export default function DatabasePage() {
   }
 
   const getPublicUrl = () => {
-    // Assuming the public URL format is based on the database name and type
     return `https://${database?.name}.${API_URL}`
   }
 
@@ -192,7 +181,16 @@ export default function DatabasePage() {
               <Input
                 id={key}
                 value={value}
-                onChange={(e) => handleEnvVarChange(key, e.target.value)}
+                onChange={(e) => {
+                  // Optionally, validate the URL format based on db_type
+                  setUpdateRequest(prev => ({
+                    ...prev,
+                    new_env_vars: {
+                      ...prev.new_env_vars,
+                      [key]: e.target.value
+                    }
+                  }))
+                }}
                 disabled={database.status === 'running'}
                 className="ml-2"
               />
