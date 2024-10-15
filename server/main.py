@@ -1,15 +1,12 @@
-from fastapi import FastAPI, HTTPException, Depends
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
+from sqlalchemy import Column, Integer, String
 from sqlalchemy.orm import Session
+from fastapi import FastAPI, HTTPException, Depends, Request
+from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.cors import CORSMiddleware as StarletteCORSMiddleware
+from pydantic import BaseModel
 import docker
-import socket
-from typing import Optional, Dict, Any
-import os
-from database import SessionLocal, engine
-from models import Base, DatabaseInstance ,Setting
-from typing import List
-
+import dns.resolver
+from models import Base
 # Create the database tables
 Base.metadata.create_all(bind=engine)
 
