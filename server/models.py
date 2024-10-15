@@ -10,21 +10,14 @@ class Setting(Base):
     status = Column(String, default="not verified") 
 
 
-from sqlalchemy import Column, String, Integer, DateTime
-from sqlalchemy.ext.declarative import declarative_base
-
-Base = declarative_base()
-
 class DatabaseInstance(Base):
     __tablename__ = "databases"
 
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, unique=True, index=True, nullable=False)
-    db_type = Column(String, nullable=False)
-    username = Column(String, nullable=False)
-    password = Column(String, nullable=False)
-    host = Column(String, nullable=False)
-    port = Column(Integer, nullable=False)
-    database = Column(String, nullable=False)
-    status = Column(String, default="stopped")
-    created_at = Column(DateTime)
+    name = Column(String, unique=True, index=True)
+    db_type = Column(String, index=True)
+    user_port = Column(Integer, index=True)
+    internal_port = Column(Integer, index=True)
+    status = Column(String, index=True)
+    env_vars = Column(JSON, default={})  # Add this line to store environment variables
+    created_at = Column(DateTime(timezone=True), server_default=func.now())

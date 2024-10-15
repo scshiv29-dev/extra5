@@ -105,6 +105,42 @@ export default function DatabasePage() {
     return `https://${database?.name}.${API_URL}`
   }
 
+  /**
+   * Constructs the connection URL based on db_type and env_vars.
+   * Supported db_types:
+   * - MySQL
+   * - MariaDB
+   * - MongoDB
+   * - Postgres
+   * - Redis
+   */
+  const constructConnectionURL = (): string | null => {
+    if (!database) return null
+
+    const { db_type, env_vars } = database
+    const username = encodeURIComponent(env_vars['USERNAME'] || '')
+    const password = encodeURIComponent(env_vars['PASSWORD'] || '')
+    const host = env_vars['HOST'] || ''
+    const port = env_vars['PORT'] || ''
+    const databaseName = env_vars['DATABASE'] || ''
+
+    switch (db_type.toLowerCase()) {
+      case 'mysql':
+      case 'mariadb':
+        return `mysql://${username}:${password}@${host}:${port}/${databaseName}`
+      case 'mongodb':
+        return `mongodb://${username}:${password}@${host}:${port}/${databaseName}`
+      case 'postgres':
+        return `postgres://${username}:${password}@${host}:${port}/${databaseName}`
+      case 'redis':
+        return `redis://:${password}@${host}:${port}/${databaseName}`
+      default:
+        return null
+    }
+  }
+
+  const connectionURL = constructConnectionURL()
+
   if (isLoading) {
     return <div>Loading...</div>
   }
@@ -170,6 +206,22 @@ export default function DatabasePage() {
         </CardContent>
       </Card>
 
+      {connectionURL && (
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle>Connection URL</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center">
+              <Input value={connectionURL} disabled />
+              <Button onClick={() => copyToClipboard(connectionURL)} className="ml-2">
+                <Copy className="h-4 w-4" />
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <Card className="mb-8">
         <CardHeader>
           <CardTitle>Environment Variables</CardTitle>
@@ -182,7 +234,6 @@ export default function DatabasePage() {
                 id={key}
                 value={value}
                 onChange={(e) => {
-                  // Optionally, validate the URL format based on db_type
                   setUpdateRequest(prev => ({
                     ...prev,
                     new_env_vars: {

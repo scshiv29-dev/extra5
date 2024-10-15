@@ -1,14 +1,14 @@
 from sqlalchemy.orm import Session
-from fastapi import FastAPI, HTTPException, Depends, Request
+from fastapi import FastAPI, HTTPException, Depends, Request, Path
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 import docker
 import dns.resolver
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List, Union
 import socket
 from models import Setting, DatabaseInstance
 from database import SessionLocal, engine , Base
-from urllib.parse import quote_plus
+from datetime import datetime
 
 # Create the database tables
 Base.metadata.create_all(bind=engine)
@@ -53,6 +53,7 @@ class DatabaseRequest(BaseModel):
 # Check if a port is available
 def is_port_available(port: int) -> bool:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.settimeout(1)  # Reduced timeout for faster checks
         result = s.connect_ex(('localhost', port))
         return result != 0
 
@@ -105,6 +106,72 @@ database_configs = {
     }
 }
 
+def get_nearby_free_ports(internal_port: int, count: int = 5, range_delta: int = 100) -> List[int]:
+    """
+    Find a specified number of free ports near the given internal port.
+
+    Args:
+        internal_port (int): The reference internal port.
+        count (int, optional): Number of free ports to find. Defaults to 5.
+        range_delta (int, optional): Range to search around the internal port. Defaults to 100.
+
+    Returns:
+        List[int]: List of available ports.
+    """
+    available_ports = []
+    lower_bound = max(1024, internal_port - range_delta)
+    upper_bound = min(65535, internal_port + range_delta)
+
+    # Iterate through the range and collect available ports
+    for port in range(lower_bound, upper_bound + 1):
+        if is_port_available(port):
+            available_ports.append(port)
+            if len(available_ports) == count:
+                break
+
+    if len(available_ports) < count:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Only found {len(available_ports)} available ports near {internal_port}."
+        )
+
+    return available_ports
+
+@app.get("/get-free-ports/{identifier}", response_model=List[int])
+def get_free_ports(
+    identifier: str = Path(..., description="Internal port number or database name."),
+    db: Session = Depends(get_db)
+) -> List[int]:
+    """
+    Retrieve 5 free ports near a specified internal port or based on a database's internal port.
+
+    Args:
+        identifier (str): Either an internal port number (as a string) or a database name.
+        db (Session): Database session dependency.
+
+    Returns:
+        List[int]: List of 5 available ports.
+    """
+    # Attempt to interpret the identifier as a port number
+    try:
+        internal_port = int(identifier)
+        if not (1 <= internal_port <= 65535):
+            raise ValueError
+    except ValueError:
+        # Identifier is not a valid port number; treat it as a database name
+        db_instance = db.query(DatabaseInstance).filter(DatabaseInstance.name == identifier).first()
+        if not db_instance:
+            raise HTTPException(status_code=404, detail="Database not found.")
+        internal_port = db_instance.internal_port
+
+    # Fetch nearby free ports
+    try:
+        free_ports = get_nearby_free_ports(internal_port)
+    except HTTPException as e:
+        raise e
+
+    return free_ports
+
 @app.post("/databases")
 def create_database(db_request: DatabaseRequest, db: Session = Depends(get_db)):
     print("Received database creation request:", db_request.dict())
@@ -124,13 +191,19 @@ def create_database(db_request: DatabaseRequest, db: Session = Depends(get_db)):
         if var not in env_vars:
             raise HTTPException(status_code=400, detail=f"Missing required environment variable: {var}")
 
-    # Check if the desired port is available
-    port = db_request.user_port
-    if not is_port_available(port):
-        port = get_available_port(port + 1)
-        return {"error": f"Port {db_request.user_port} is in use.", "next_available_port": port}
+    # Find 5 free ports near the internal port using the helper function
+    try:
+        free_ports = get_nearby_free_ports(internal_port)
+    except HTTPException as e:
+        raise e
 
-    # Pull the image
+    # Automatically select the first available port
+    port = free_ports[0]
+
+    if not is_port_available(port):
+        raise HTTPException(status_code=400, detail=f"Port {port} is in use.")
+
+    # Proceed with pulling the image, creating the container, etc.
     try:
         docker_client.images.pull(config["image"])
     except docker.errors.APIError as e:
@@ -172,13 +245,19 @@ def create_database(db_request: DatabaseRequest, db: Session = Depends(get_db)):
         user_port=port,
         internal_port=internal_port,
         status="running",
-        env_vars=env_vars  # Save environment variables
+        env_vars=env_vars,  # Save environment variables
+        created_at=datetime.utcnow()
     )
     db.add(db_instance)
     db.commit()
     db.refresh(db_instance)
 
-    return {"message": "Database created", "id": container.id, "port": port}
+    return {
+        "message": "Database created",
+        "id": container.id,
+        "port": port,
+        "available_ports_nearby": free_ports  # Returning the list of available ports
+    }
 
 @app.get("/databases")
 def list_databases(db: Session = Depends(get_db)):
@@ -196,46 +275,20 @@ def list_databases(db: Session = Depends(get_db)):
         })
     return result
 
-def construct_connection_url(db_instance: DatabaseInstance) -> Dict[str, str]:
-    username = quote_plus(db_instance.username)
-    password = quote_plus(db_instance.password)
-    host = db_instance.host
-    port = db_instance.port
-    database = db_instance.database
-
-    if db_instance.db_type.lower() == "mysql":
-        url = f"mysql://{username}:{password}@{host}:{port}/{database}"
-    elif db_instance.db_type.lower() == "mariadb":
-        url = f"mysql://{username}:{password}@{host}:{port}/{database}"
-    elif db_instance.db_type.lower() == "mongodb":
-        url = f"mongodb://{username}:{password}@{host}:{port}/{database}"
-    elif db_instance.db_type.lower() == "postgres":
-        url = f"postgres://{username}:{password}@{host}:{port}/{database}"
-    elif db_instance.db_type.lower() == "redis":
-        url = f"redis://:{password}@{host}:{port}/{database}"
-    else:
-        raise ValueError(f"Unsupported database type: {db_instance.db_type}")
-
-    return {"CONNECTION_URL": url}
-
 @app.get("/databases/{name}")
 def get_database(name: str, db: Session = Depends(get_db)):
     db_instance = db.query(DatabaseInstance).filter(DatabaseInstance.name == name).first()
     if db_instance is None:
         raise HTTPException(status_code=404, detail="Database not found")
-    try:
-        env_vars = construct_connection_url(db_instance)
-    except ValueError as ve:
-        raise HTTPException(status_code=400, detail=str(ve))
     return {
         "id": db_instance.id,
         "name": db_instance.name,
         "db_type": db_instance.db_type,
         "user_port": db_instance.user_port,
         "internal_port": db_instance.internal_port,
-        "status": db_instance.status,
-        "created_at": db_instance.created_at,
-        "env_vars": env_vars  # Updated to include formatted connection URL
+        "status": db_instance.status,   
+        "env_vars": db_instance.env_vars,
+        "created_at": db_instance.created_at
     }
 
 @app.delete("/databases/{name}")
@@ -287,70 +340,43 @@ def update_database_status(name: str, new_status: str, db: Session = Depends(get
     db.refresh(db_instance)
 
     return {"message": f"Database status updated to {new_status}", "name": name}
-
 class UpdateSettingRequest(BaseModel):
-    nextjs_domain: str
-    fastapi_domain: str
+    domain: str
 
 @app.post("/settings")
-def update_settings(setting: UpdateSettingRequest, db: Session = Depends(get_db)):
+def update_setting(setting: UpdateSettingRequest, db: Session = Depends(get_db)):
     db_setting = db.query(Setting).first()
     if db_setting is None:
-        db_setting = Setting(nextjs_domain=setting.nextjs_domain, fastapi_domain=setting.fastapi_domain)
+        db_setting = Setting(domain=setting.domain)
         db.add(db_setting)
     else:
-        db_setting.nextjs_domain = setting.nextjs_domain
-        db_setting.fastapi_domain = setting.fastapi_domain
+        db_setting.domain = setting.domain
     db.commit()
     db.refresh(db_setting)
 
-    # Update Traefik to route domains to Next.js and FastAPI apps
+    # Update Traefik to route domain to Next.js app
     try:
-        # Update Next.js app
-        update_container_domain("nextjs_app", "extra5_next-app:latest", setting.nextjs_domain, 3000)
-
-        # Update FastAPI app
-        update_container_domain("extra5_app", "fastapi_app:latest", setting.fastapi_domain, 8000)
-
-    except docker.errors.ImageNotFound as e:
-        raise HTTPException(status_code=404, detail=f"Docker image not found: {str(e)}")
-    except docker.errors.APIError as e:
-        raise HTTPException(status_code=500, detail=f"Failed to update Traefik: {str(e)}")
-
-    return db_setting
-
-def update_container_domain(container_name: str, image_name: str, domain: str, port: int):
-    try:
-        container = docker_client.containers.get(container_name)
+        container = docker_client.containers.get("nextjs_app")
         container.stop()
         container.remove()
 
         # Start container with updated label for new domain
         docker_client.containers.run(
-            image_name,
-            name=container_name,
-            ports={f"{port}/tcp": port},
+            "extra5_next-app:latest",  # Updated with the correct image name
+            name="nextjs_app",
+            ports={"3000/tcp": 3000},
             labels={
                 "traefik.enable": "true",
-                f"traefik.http.routers.{container_name}.rule": f"Host(`{domain}`)",
-                f"traefik.http.services.{container_name}.loadbalancer.server.port": str(port)
+                f"traefik.http.routers.nextjs-app.rule": f"Host(`{setting.domain}`)",
+                "traefik.http.services.nextjs-app.loadbalancer.server.port": "3000"
             },
             network="traefik_network",
             detach=True,
             restart_policy={"Name": "always"}
         )
-    except docker.errors.NotFound:
-        # If the container doesn't exist, just create a new one
-        docker_client.containers.run(
-            image_name,
-            name=container_name,
-            ports={f"{port}/tcp": port},
-            labels={
-                "traefik.enable": "true",
-                f"traefik.http.routers.{container_name}.rule": f"Host(`{domain}`)",
-                f"traefik.http.services.{container_name}.loadbalancer.server.port": str(port)
-            },
-            network="traefik_network",
-            detach=True,
-            restart_policy={"Name": "always"}
-        )
+    except docker.errors.ImageNotFound:
+        raise HTTPException(status_code=404, detail="Docker image 'extra5_next-app' not found")
+    except docker.errors.APIError as e:
+        raise HTTPException(status_code=500, detail=f"Failed to update Traefik: {str(e)}")
+
+    return db_setting
