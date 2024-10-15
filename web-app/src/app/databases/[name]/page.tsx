@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { toast } from "@/hooks/use-toast"
 import { API_URL } from '@/lib/api'
 import { Copy } from "lucide-react"
+import { extractServerIp } from '@/lib/utils'
 
 const API_BASE_URL = API_URL
 
@@ -28,7 +29,7 @@ type UpdateDatabaseRequest = {
 }
 
 function constructConnectionString(dbType: string, envVars: Record<string, string>, userPort: number, internalPort: number): string {
-  const host = userPort; // Use userPort as the host
+  const host = extractServerIp(API_URL as string); // Use userPort as the host
   const port = internalPort; // Use internalPort as the port
 
   switch (dbType.toLowerCase()) {
