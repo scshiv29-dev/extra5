@@ -9,8 +9,8 @@ import { toast } from "@/hooks/use-toast"
 import { API_URL } from '@/lib/api'
 
 export default function Settings() {
-  const [nextjsDomain, setNextjsDomain] = useState('new-nextjs-domain.com')
-  const [fastapiDomain, setFastapiDomain] = useState('new-fastapi-domain.com')
+  const [domain, setDomain] = useState('new-nextjs-domain.com')
+  
   const [isLoading, setIsLoading] = useState(false)
 
   const saveSettings = async () => {
@@ -22,8 +22,7 @@ export default function Settings() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ 
-          nextjs_domain: nextjsDomain,
-          fastapi_domain: fastapiDomain
+          domain:domain
         }),
       })
 
@@ -59,21 +58,12 @@ export default function Settings() {
         <CardContent>
           <div className="space-y-4">
             <div>
-              <Label htmlFor="nextjs-domain">Next.js App Domain</Label>
+              <Label htmlFor="domain">Next.js App Domain</Label>
               <Input
-                id="nextjs-domain"
-                value={nextjsDomain}
-                onChange={(e) => setNextjsDomain(e.target.value)}
+                id="domain"
+                value={domain}
+                onChange={(e) => setDomain(e.target.value)}
                 placeholder="Enter Next.js App Domain"
-              />
-            </div>
-            <div>
-              <Label htmlFor="fastapi-domain">FastAPI App Domain</Label>
-              <Input
-                id="fastapi-domain"
-                value={fastapiDomain}
-                onChange={(e) => setFastapiDomain(e.target.value)}
-                placeholder="Enter FastAPI App Domain"
               />
             </div>
             <Button onClick={saveSettings} disabled={isLoading}>
