@@ -259,3 +259,42 @@ def update_database_status(name: str, new_status: str, db: Session = Depends(get
     db.refresh(db_instance)
 
     return {"message": f"Database status updated to {new_status}", "name": name}
+
+class UpdateSettingRequest(BaseModel):
+    domain: str
+
+@app.put("/settings")
+def update_setting(setting: UpdateSettingRequest, db: Session = Depends(get_db)):
+    db_setting = db.query(Setting).first()
+    if db_setting is None:
+        db_setting = Setting(domain=setting.domain)
+        db.add(db_setting)
+    else:
+        db_setting.domain = setting.domain
+    db.commit()
+    db.refresh(db_setting)
+
+    # Update Traefik to route domain to Next.js app
+    try:
+        container = docker_client.containers.get("nextjs_app")
+        container.stop()
+        container.remove()
+
+        # Start container with updated label for new domain
+        docker_client.containers.run(
+            "nextjs_app_image",  # Replace with the actual Next.js image name used in Docker Compose
+            name="nextjs_app",
+            ports={"3000/tcp": 3000},
+            labels={
+                "traefik.enable": "true",
+                f"traefik.http.routers.nextjs-app.rule": f"Host(`{setting.domain}`)",
+                "traefik.http.services.nextjs-app.loadbalancer.server.port": "3000"
+            },
+            network="traefik_network",
+            detach=True,
+            restart_policy={"Name": "always"}
+        )
+    except docker.errors.APIError as e:
+        raise HTTPException(status_code=500, detail=f"Failed to update Traefik: {str(e)}")
+
+    return db_setting
