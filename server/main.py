@@ -263,7 +263,7 @@ def update_database_status(name: str, new_status: str, db: Session = Depends(get
 class UpdateSettingRequest(BaseModel):
     domain: str
 
-@app.put("/settings")
+@app.post("/settings")
 def update_setting(setting: UpdateSettingRequest, db: Session = Depends(get_db)):
     db_setting = db.query(Setting).first()
     if db_setting is None:

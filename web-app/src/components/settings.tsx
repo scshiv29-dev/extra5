@@ -39,8 +39,8 @@ export default function Settings() {
         description: "Failed to save settings. Please try again.",
         variant: "destructive",
       })
-    } finally {
-      setIsLoading(false)
+  } finally {
+    setIsLoading(false)
     }
   }
 
