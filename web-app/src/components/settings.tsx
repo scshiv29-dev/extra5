@@ -7,16 +7,41 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { toast } from "@/hooks/use-toast"
 
-export function Settings() {
-  const [apiUrl, setApiUrl] = useState('http://localhost:8000')
+export default function Settings() {
+  const [domainUrl, setUrl] = useState('flexidb.site')
+  const [isLoading, setIsLoading] = useState(false)
 
-  const saveSettings = () => {
-    // In a real application, you would save this to some form of persistent storage
-    localStorage.setItem('apiUrl', apiUrl)
-    toast({
-      title: "Success",
-      description: "Settings saved successfully",
-    })
+  const saveSettings = async () => {
+    setIsLoading(true)
+    try {
+      const response = await fetch('/settings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ domain: domainUrl }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to save settings')
+      }
+
+      const data = await response.json()
+
+      toast({
+        title: "Success",
+        description: "Settings saved successfully",
+      })
+    } catch (error) {
+      console.error('Error saving settings:', error)
+      toast({
+        title: "Error",
+        description: "Failed to save settings. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -29,15 +54,17 @@ export function Settings() {
         <CardContent>
           <div className="space-y-4">
             <div>
-              <Label htmlFor="api-url">API URL</Label>
+              <Label htmlFor="api-url">Domain</Label>
               <Input
                 id="api-url"
-                value={apiUrl}
-                onChange={(e) => setApiUrl(e.target.value)}
-                placeholder="Enter API URL"
+                value={domainUrl}
+                onChange={(e) => setUrl(e.target.value)}
+                placeholder="Enter Domain"
               />
             </div>
-            <Button onClick={saveSettings}>Save Settings</Button>
+            <Button onClick={saveSettings} disabled={isLoading}>
+              {isLoading ? 'Saving...' : 'Save Settings'}
+            </Button>
           </div>
         </CardContent>
       </Card>

@@ -40,4 +40,5 @@ cp .env web-app/
 sudo docker-compose up --build -d
 
 # Print success message
-echo "Setup complete. Docker containers are up and running."
+echo "Setup complete. FlexiDB is running at  http://${SERVER_IP}:3000, Backend server is running at  http://${SERVER_IP}:8000/docs"
+echo "Access Traefik dashboard at: http://${SERVER_IP}:8080"
