@@ -23,7 +23,6 @@ sudo docker run -d \
   --certificatesresolvers.le.acme.email=$email -p 'Enter your email for Let's Encrypt notifications: ' email && echo $email) \
   --certificatesresolvers.le.acme.storage=/letsencrypt/acme.json
 
-
 # Clone the repository
 git clone https://github.com/scshiv29-dev/extra5.git
 
@@ -33,15 +32,20 @@ REPO_NAME=$(basename "https://github.com/scshiv29-dev/extra5.git" .git)
 # Change directory to the cloned repository
 cd extra5 || { echo "Failed to change directory to cloned repository"; exit 1; }
 
+# Ensure web-app directory exists
+mkdir -p web-app
+
 # Get the server's IP address
 SERVER_IP=$(hostname -I | awk '{print $1}')
 
 # Set the NEXT_PUBLIC_API_BASE_URL environment variable
-export NEXT_PUBLIC_API_BASE_URL="http://${SERVER_IP}:8000"
-echo "NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL}" >> .env
+echo "NEXT_PUBLIC_API_BASE_URL=http://${SERVER_IP}:8000" > .env  # Overwrite .env with the new value
 
 # Copy .env to the web-app folder
-cp .env web-app/
+cp .env web-app/ || { echo "Failed to copy .env to web-app directory"; exit 1; }
+
+# Change to the directory with docker-compose.yml
+cd path/to/directory/with/docker-compose.yml || { echo "Failed to change directory to where docker-compose.yml is located"; exit 1; }
 
 # Run Docker Compose
 sudo docker-compose up --build -d
