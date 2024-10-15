@@ -43,6 +43,7 @@ export default function DatabasePage() {
     try {
       const response = await fetch(`${API_BASE_URL}/databases/${params.name}`, {
         method: 'GET',
+        mode:"no-cors",
         headers: {
           'Content-Type': 'application/json',
         },
@@ -71,6 +72,7 @@ export default function DatabasePage() {
     try {
       const response = await fetch(`${API_BASE_URL}/databases/${params.name}/update`, {
         method: 'PUT',
+        mode:"no-cors",
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updateRequest),
         credentials: 'include',
@@ -94,6 +96,7 @@ export default function DatabasePage() {
     try {
       const response = await fetch(`${API_BASE_URL}/databases/${params.name}/status?new_status=${newStatus}`, {
         method: 'PUT',
+        mode:"no-cors",
         credentials: 'include',
       })
       if (!response.ok) throw new Error('Failed to update database status')

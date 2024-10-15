@@ -22,7 +22,9 @@ export default function Dashboard() {
 
   const fetchDatabases = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/databases`)
+      const response = await fetch(`${API_BASE_URL}/databases`,{
+        mode:"no-cors",
+      })
       if (!response.ok) throw new Error('Failed to fetch databases')
       const data = await response.json()
       setDatabases(data)
