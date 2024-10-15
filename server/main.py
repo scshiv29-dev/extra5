@@ -15,6 +15,13 @@ Base.metadata.create_all(bind=engine)
 app = FastAPI()
 docker_client = docker.from_env()
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Replace "*" with specific domains for better security, e.g., ["http://188.245.185.241:3000"]
+    allow_credentials=True,
+    allow_methods=["*"],  # Allow all methods (GET, POST, PUT, DELETE, etc.)
+    allow_headers=["*"],  # Allow all headers (Authorization, Content-Type, etc.)
+)
 @app.middleware("http")
 async def add_cors_headers(request: Request, call_next):
     response = await call_next(request)
