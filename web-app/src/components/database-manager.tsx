@@ -41,8 +41,8 @@ const database_configs = {
   mongodb: {
     image: "mongo:latest",
     internal_port: 27017,
-    required_env_vars: [],
-    optional_env_vars: ["MONGO_INITDB_ROOT_USERNAME", "MONGO_INITDB_ROOT_PASSWORD"],
+    required_env_vars: ["MONGO_INITDB_ROOT_USERNAME", "MONGO_INITDB_ROOT_PASSWORD"],
+    optional_env_vars: ["MONGO_INITDB_DATABASE"],
     cmd: []
   },
   redis: {
@@ -104,7 +104,7 @@ export default function DatabaseManager() {
 
     config.optional_env_vars.forEach(envVar => {
       if (envVar.includes('DATABASE')) {
-        newEnvVars[envVar] = generateRandomName().replace(/-/g, '_')
+        newEnvVars[envVar] = generateRandomString(9)
       } else if (envVar.includes('PASSWORD')) {
         newEnvVars[envVar] = generateRandomString(20)
       } else if (envVar.includes('USER')) {
@@ -151,14 +151,17 @@ export default function DatabaseManager() {
   const createDatabase = async () => {
     setIsLoading(true)
     try {
+      // Ensure the latest state is used
+      const databaseToCreate = { ...newDatabase };
+
       const response = await fetch(`${API_BASE_URL}/databases`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newDatabase),
+        body: JSON.stringify(databaseToCreate),
         credentials: 'include',
       })
       if (!response.ok) throw new Error('Failed to create database')
-   
+
       const data = await response.json()
       console.log(data)
       toast({

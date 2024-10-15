@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -25,6 +25,35 @@ type UpdateDatabaseRequest = {
   new_env_vars?: Record<string, string>
   new_user_port?: number
   new_internal_port?: number
+}
+
+function constructConnectionString(dbType: string, envVars: Record<string, string>, userPort: number, internalPort: number): string {
+  const host = userPort; // Use userPort as the host
+  const port = internalPort; // Use internalPort as the port
+
+  switch (dbType.toLowerCase()) {
+    case 'mysql':
+    case 'mariadb':
+      const mysqlUser = encodeURIComponent(envVars['MYSQL_USER'] || 'root');
+      const mysqlPassword = encodeURIComponent(envVars['MYSQL_PASSWORD'] || envVars['MYSQL_ROOT_PASSWORD'] || '');
+      const mysqlDatabase = encodeURIComponent(envVars['MYSQL_DATABASE'] || '');
+      return `mysql://${mysqlUser}:${mysqlPassword}@${host}:${port}/${mysqlDatabase}`;
+    case 'mongodb':
+      const mongoUser = encodeURIComponent(envVars['MONGO_INITDB_ROOT_USERNAME'] || '');
+      const mongoPassword = encodeURIComponent(envVars['MONGO_INITDB_ROOT_PASSWORD'] || '');
+      const mongoDatabase = encodeURIComponent(envVars['MONGO_INITDB_DATABASE'] || '');
+      return `mongodb://${mongoUser}:${mongoPassword}@${host}:${port}/${mongoDatabase}`;
+    case 'postgresql':
+      const postgresUser = encodeURIComponent(envVars['POSTGRES_USER'] || '');
+      const postgresPassword = encodeURIComponent(envVars['POSTGRES_PASSWORD'] || '');
+      const postgresDatabase = encodeURIComponent(envVars['POSTGRES_DB'] || '');
+      return `postgres://${postgresUser}:${postgresPassword}@${host}:${port}/${postgresDatabase}`;
+    case 'redis':
+      const redisPassword = encodeURIComponent(envVars['REDIS_PASSWORD'] || '');
+      return `redis://:${redisPassword}@${host}:${port}/0`;
+    default:
+      return '';
+  }
 }
 
 export default function DatabasePage() {
@@ -105,41 +134,15 @@ export default function DatabasePage() {
     return `https://${database?.name}.${API_URL}`
   }
 
-  /**
-   * Constructs the connection URL based on db_type and env_vars.
-   * Supported db_types:
-   * - MySQL
-   * - MariaDB
-   * - MongoDB
-   * - Postgres
-   * - Redis
-   */
-  const constructConnectionURL = (): string | null => {
-    if (!database) return null
-
-    const { db_type, env_vars } = database
-    const username = encodeURIComponent(env_vars['USERNAME'] || '')
-    const password = encodeURIComponent(env_vars['PASSWORD'] || '')
-    const host = env_vars['HOST'] || ''
-    const port = env_vars['PORT'] || ''
-    const databaseName = env_vars['DATABASE'] || ''
-
-    switch (db_type.toLowerCase()) {
-      case 'mysql':
-      case 'mariadb':
-        return `mysql://${username}:${password}@${host}:${port}/${databaseName}`
-      case 'mongodb':
-        return `mongodb://${username}:${password}@${host}:${port}/${databaseName}`
-      case 'postgres':
-        return `postgres://${username}:${password}@${host}:${port}/${databaseName}`
-      case 'redis':
-        return `redis://:${password}@${host}:${port}/0`
-      default:
-        return null
-    }
-  }
-
-  const connectionURL = constructConnectionURL()
+  const connectionURL = useMemo(() => {
+    if (!database) return '';
+    return constructConnectionString(
+      database.db_type || '',
+      database.env_vars || {},
+      database.user_port || 0,
+      database.internal_port || 0
+    );
+  }, [database]);
 
   if (isLoading) {
     return <div>Loading...</div>

@@ -107,22 +107,10 @@ database_configs = {
 }
 
 def get_nearby_free_ports(internal_port: int, count: int = 5, range_delta: int = 100) -> List[int]:
-    """
-    Find a specified number of free ports near the given internal port.
-
-    Args:
-        internal_port (int): The reference internal port.
-        count (int, optional): Number of free ports to find. Defaults to 5.
-        range_delta (int, optional): Range to search around the internal port. Defaults to 100.
-
-    Returns:
-        List[int]: List of available ports.
-    """
     available_ports = []
     lower_bound = max(1024, internal_port - range_delta)
     upper_bound = min(65535, internal_port + range_delta)
 
-    # Iterate through the range and collect available ports
     for port in range(lower_bound, upper_bound + 1):
         if is_port_available(port):
             available_ports.append(port)
