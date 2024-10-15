@@ -7,8 +7,10 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { toast } from "@/hooks/use-toast"
 import { API_URL } from '@/lib/api'
+
 export default function Settings() {
-  const [domainUrl, setUrl] = useState('flexidb.site')
+  const [nextjsDomain, setNextjsDomain] = useState('new-nextjs-domain.com')
+  const [fastapiDomain, setFastapiDomain] = useState('new-fastapi-domain.com')
   const [isLoading, setIsLoading] = useState(false)
 
   const saveSettings = async () => {
@@ -19,7 +21,10 @@ export default function Settings() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ domain: domainUrl }),
+        body: JSON.stringify({ 
+          nextjs_domain: nextjsDomain,
+          fastapi_domain: fastapiDomain
+        }),
       })
 
       if (!response.ok) {
@@ -39,8 +44,8 @@ export default function Settings() {
         description: "Failed to save settings. Please try again.",
         variant: "destructive",
       })
-  } finally {
-    setIsLoading(false)
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -49,17 +54,26 @@ export default function Settings() {
       <h1 className="text-2xl font-bold mb-6">Settings</h1>
       <Card>
         <CardHeader>
-          <CardTitle>API Configuration</CardTitle>
+          <CardTitle>Domain Configuration</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
             <div>
-              <Label htmlFor="api-url">Domain</Label>
+              <Label htmlFor="nextjs-domain">Next.js App Domain</Label>
               <Input
-                id="api-url"
-                value={domainUrl}
-                onChange={(e) => setUrl(e.target.value)}
-                placeholder="Enter Domain"
+                id="nextjs-domain"
+                value={nextjsDomain}
+                onChange={(e) => setNextjsDomain(e.target.value)}
+                placeholder="Enter Next.js App Domain"
+              />
+            </div>
+            <div>
+              <Label htmlFor="fastapi-domain">FastAPI App Domain</Label>
+              <Input
+                id="fastapi-domain"
+                value={fastapiDomain}
+                onChange={(e) => setFastapiDomain(e.target.value)}
+                placeholder="Enter FastAPI App Domain"
               />
             </div>
             <Button onClick={saveSettings} disabled={isLoading}>

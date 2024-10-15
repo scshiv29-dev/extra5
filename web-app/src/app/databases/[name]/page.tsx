@@ -6,9 +6,9 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog"
 import { toast } from "@/hooks/use-toast"
 import { API_URL } from '@/lib/api'
+import { Copy } from "lucide-react"
 
 const API_BASE_URL = API_URL
 
@@ -32,7 +32,6 @@ export default function DatabasePage() {
   const router = useRouter()
   const [database, setDatabase] = useState<Database | null>(null)
   const [updateRequest, setUpdateRequest] = useState<UpdateDatabaseRequest>({})
-  const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -71,12 +70,12 @@ export default function DatabasePage() {
     }
   }
 
-  const updateDatabase = async () => {
+  const updateDatabase = async (status: string) => {
     try {
       const response = await fetch(`${API_BASE_URL}/databases/${params.name}/update`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updateRequest),
+        body: JSON.stringify({ status: status }),
         credentials: 'include',
       })
       if (!response.ok) throw new Error('Failed to update database')
@@ -84,27 +83,6 @@ export default function DatabasePage() {
       toast({
         title: "Success",
         description: "Database updated successfully",
-      })
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : 'An unknown error occurred',
-        variant: "destructive",
-      })
-    }
-  }
-
-  const updateDatabaseStatus = async (newStatus: string) => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/databases/${params.name}/status?new_status=${newStatus}`, {
-        method: 'PUT',
-        credentials: 'include',
-      })
-      if (!response.ok) throw new Error('Failed to update database status')
-      await fetchDatabase()
-      toast({
-        title: "Success",
-        description: `Database ${newStatus === 'running' ? 'started' : 'stopped'} successfully`,
       })
     } catch (error) {
       toast({
@@ -123,6 +101,19 @@ export default function DatabasePage() {
         [key]: value
       }
     }))
+  }
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text)
+    toast({
+      title: "Copied!",
+      description: "Text copied to clipboard.",
+    })
+  }
+
+  const getPublicUrl = () => {
+    // Assuming the public URL format is based on the database name and type
+    return `https://${database?.name}.${API_URL}`
   }
 
   if (isLoading) {
@@ -161,6 +152,7 @@ export default function DatabasePage() {
                 type="number"
                 value={updateRequest.new_user_port ?? database.user_port}
                 onChange={(e) => setUpdateRequest(prev => ({...prev, new_user_port: parseInt(e.target.value)}))}
+                disabled={database.status === 'running'}
               />
             </div>
             <div>
@@ -169,11 +161,21 @@ export default function DatabasePage() {
                 type="number"
                 value={updateRequest.new_internal_port ?? database.internal_port}
                 onChange={(e) => setUpdateRequest(prev => ({...prev, new_internal_port: parseInt(e.target.value)}))}
+                disabled={database.status === 'running'}
               />
             </div>
             <div>
               <Label>Status</Label>
               <Input value={database.status} disabled />
+            </div>
+            <div>
+              <Label>Public URL</Label>
+              <div className="flex items-center">
+                <Input value={getPublicUrl()} disabled />
+                <Button onClick={() => copyToClipboard(getPublicUrl())} className="ml-2">
+                  <Copy className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           </div>
         </CardContent>
@@ -185,31 +187,38 @@ export default function DatabasePage() {
         </CardHeader>
         <CardContent>
           {updateRequest.new_env_vars && Object.entries(updateRequest.new_env_vars).map(([key, value]) => (
-            <div key={key} className="mb-4">
+            <div key={key} className="mb-4 flex items-center">
               <Label htmlFor={key}>{key}</Label>
               <Input
                 id={key}
                 value={value}
                 onChange={(e) => handleEnvVarChange(key, e.target.value)}
+                disabled={database.status === 'running'}
+                className="ml-2"
               />
+              <Button onClick={() => copyToClipboard(value)} className="ml-2">
+                <Copy className="h-4 w-4" />
+              </Button>
             </div>
           ))}
         </CardContent>
       </Card>
 
       <div className="flex justify-between">
-        <Button onClick={updateDatabase}>Update Database</Button>
+        <Button onClick={() => updateDatabase('running')} disabled={database.status === 'running'}>
+          Update Database
+        </Button>
         {database.status === 'running' ? (
           <Button 
             variant="destructive" 
-            onClick={() => updateDatabaseStatus('stopped')}
+            onClick={() => updateDatabase('stopped')}
           >
             Stop Database
           </Button>
         ) : (
           <Button 
             variant="default" 
-            onClick={() => updateDatabaseStatus('running')}
+            onClick={() => updateDatabase('running')}
           >
             Start Database
           </Button>

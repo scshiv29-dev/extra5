@@ -207,7 +207,8 @@ def get_database(name: str, db: Session = Depends(get_db)):
         "user_port": db_instance.user_port,
         "internal_port": db_instance.internal_port,
         "status": db_instance.status,
-        "created_at": db_instance.created_at
+        "created_at": db_instance.created_at,
+        "env_vars": db_instance.env_vars  # Added env_vars to the response
     }
 
 @app.delete("/databases/{name}")
@@ -259,43 +260,70 @@ def update_database_status(name: str, new_status: str, db: Session = Depends(get
     db.refresh(db_instance)
 
     return {"message": f"Database status updated to {new_status}", "name": name}
+
 class UpdateSettingRequest(BaseModel):
-    domain: str
+    nextjs_domain: str
+    fastapi_domain: str
 
 @app.post("/settings")
-def update_setting(setting: UpdateSettingRequest, db: Session = Depends(get_db)):
+def update_settings(setting: UpdateSettingRequest, db: Session = Depends(get_db)):
     db_setting = db.query(Setting).first()
     if db_setting is None:
-        db_setting = Setting(domain=setting.domain)
+        db_setting = Setting(nextjs_domain=setting.nextjs_domain, fastapi_domain=setting.fastapi_domain)
         db.add(db_setting)
     else:
-        db_setting.domain = setting.domain
+        db_setting.nextjs_domain = setting.nextjs_domain
+        db_setting.fastapi_domain = setting.fastapi_domain
     db.commit()
     db.refresh(db_setting)
 
-    # Update Traefik to route domain to Next.js app
+    # Update Traefik to route domains to Next.js and FastAPI apps
     try:
-        container = docker_client.containers.get("nextjs_app")
+        # Update Next.js app
+        update_container_domain("nextjs_app", "extra5_next-app:latest", setting.nextjs_domain, 3000)
+
+        # Update FastAPI app
+        update_container_domain("extra5_app", "fastapi_app:latest", setting.fastapi_domain, 8000)
+
+    except docker.errors.ImageNotFound as e:
+        raise HTTPException(status_code=404, detail=f"Docker image not found: {str(e)}")
+    except docker.errors.APIError as e:
+        raise HTTPException(status_code=500, detail=f"Failed to update Traefik: {str(e)}")
+
+    return db_setting
+
+def update_container_domain(container_name: str, image_name: str, domain: str, port: int):
+    try:
+        container = docker_client.containers.get(container_name)
         container.stop()
         container.remove()
 
         # Start container with updated label for new domain
         docker_client.containers.run(
-            "extra5_next-app:latest",  # Updated with the correct image name
-            name="nextjs_app",
-            ports={"3000/tcp": 3000},
+            image_name,
+            name=container_name,
+            ports={f"{port}/tcp": port},
             labels={
                 "traefik.enable": "true",
-                f"traefik.http.routers.nextjs-app.rule": f"Host(`{setting.domain}`)",
-                "traefik.http.services.nextjs-app.loadbalancer.server.port": "3000"
+                f"traefik.http.routers.{container_name}.rule": f"Host(`{domain}`)",
+                f"traefik.http.services.{container_name}.loadbalancer.server.port": str(port)
             },
             network="traefik_network",
             detach=True,
             restart_policy={"Name": "always"}
         )
-    except docker.errors.ImageNotFound:
-        raise HTTPException(status_code=404, detail="Docker image 'extra5_next-app' not found")
-    except docker.errors.APIError as e:
-        raise HTTPException(status_code=500, detail=f"Failed to update Traefik: {str(e)}")
-
-    return db_setting
+    except docker.errors.NotFound:
+        # If the container doesn't exist, just create a new one
+        docker_client.containers.run(
+            image_name,
+            name=container_name,
+            ports={f"{port}/tcp": port},
+            labels={
+                "traefik.enable": "true",
+                f"traefik.http.routers.{container_name}.rule": f"Host(`{domain}`)",
+                f"traefik.http.services.{container_name}.loadbalancer.server.port": str(port)
+            },
+            network="traefik_network",
+            detach=True,
+            restart_policy={"Name": "always"}
+        )

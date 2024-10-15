@@ -10,12 +10,19 @@ sudo docker run -d \
   --name traefik \
   --network traefik_network \
   -p 80:80 \
+  -p 443:443 \
   -p 8080:8080 \
   -v /var/run/docker.sock:/var/run/docker.sock \
+  -v "/letsencrypt:/letsencrypt" \
   traefik:v2.9 \
   --api.insecure=true \
   --providers.docker=true \
-  --entrypoints.web.address=:80
+  --entrypoints.web.address=:80 \
+  --entrypoints.websecure.address=:443 \
+  --certificatesresolvers.le.acme.tlschallenge=true \
+  --certificatesresolvers.le.acme.email=$email -p 'Enter your email for Let's Encrypt notifications: ' email && echo $email) \
+  --certificatesresolvers.le.acme.storage=/letsencrypt/acme.json
+
 
 # Clone the repository
 git clone https://github.com/scshiv29-dev/extra5.git

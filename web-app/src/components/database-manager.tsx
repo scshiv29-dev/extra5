@@ -1,12 +1,14 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { toast } from "@/hooks/use-toast"
+import { Loader2 } from "lucide-react"
 
 import { uniqueNamesGenerator, Config, adjectives as adjectives2, colors, animals } from 'unique-names-generator';
 import { API_URL } from '@/lib/api'
@@ -80,7 +82,7 @@ function generateRandomString(length: number) {
 }
 
 export default function DatabaseManager() {
-  
+  const router = useRouter()
   const [newDatabase, setNewDatabase] = useState<DatabaseRequest>({
     db_type: 'mysql',
     name: generateRandomName(),
@@ -88,8 +90,7 @@ export default function DatabaseManager() {
     internal_port: null,
     env_vars: {}
   })
-
-
+  const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
     // Reset env_vars when db_type changes and generate random values
@@ -124,6 +125,7 @@ export default function DatabaseManager() {
 
 
   const createDatabase = async () => {
+    setIsLoading(true)
     try {
       const response = await fetch(`${API_BASE_URL}/databases`, {
         method: 'POST',
@@ -133,16 +135,23 @@ export default function DatabaseManager() {
       })
       if (!response.ok) throw new Error('Failed to create database')
    
+      const data = await response.json()
+      console.log(data)
       toast({
         title: "Success",
         description: "Database created successfully",
       })
+
+      // Redirect to the new database page
+      router.push(`/`)
     } catch (error) {
       toast({
         title: "Error",
         description: error as string,
         variant: "destructive",
       })
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -169,7 +178,10 @@ export default function DatabaseManager() {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label htmlFor="db_type">Database Type</Label>
-              <Select onValueChange={(value) => setNewDatabase({...newDatabase, db_type: value})}>
+              <Select 
+                onValueChange={(value) => setNewDatabase({...newDatabase, db_type: value})}
+                disabled={isLoading}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Select database type" />
                 </SelectTrigger>
@@ -186,6 +198,7 @@ export default function DatabaseManager() {
                 id="name"
                 value={newDatabase.name}
                 onChange={(e) => setNewDatabase({...newDatabase, name: e.target.value})}
+                disabled={isLoading}
               />
             </div>
             <div>
@@ -195,6 +208,7 @@ export default function DatabaseManager() {
                 type="number"
                 value={newDatabase.user_port}
                 onChange={(e) => setNewDatabase({...newDatabase, user_port: parseInt(e.target.value)})}
+                disabled={isLoading}
               />
             </div>
             <div>
@@ -204,6 +218,7 @@ export default function DatabaseManager() {
                 type="number"
                 value={newDatabase.internal_port || ''}
                 onChange={(e) => setNewDatabase({...newDatabase, internal_port: e.target.value ? parseInt(e.target.value) : null})}
+                disabled={isLoading}
               />
             </div>
           </div>
@@ -217,6 +232,7 @@ export default function DatabaseManager() {
                   value={newDatabase.env_vars[envVar] || ''}
                   onChange={(e) => handleEnvVarChange(envVar, e.target.value)}
                   required
+                  disabled={isLoading}
                 />
               </div>
             ))}
@@ -227,11 +243,21 @@ export default function DatabaseManager() {
                   id={envVar}
                   value={newDatabase.env_vars[envVar] || ''}
                   onChange={(e) => handleEnvVarChange(envVar, e.target.value)}
+                  disabled={isLoading}
                 />
               </div>
             ))}
           </div>
-          <Button className="mt-4" onClick={createDatabase}>Create Database</Button>
+          <Button className="mt-4" onClick={createDatabase} disabled={isLoading}>
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Creating Database...
+              </>
+            ) : (
+              'Create Database'
+            )}
+          </Button>
         </CardContent>
       </Card>
     </div>
