@@ -14,7 +14,7 @@ export default function Settings() {
   const saveSettings = async () => {
     setIsLoading(true)
     try {
-      const response = await fetch(`${API_URL}settings`, {
+      const response = await fetch(`${API_URL}/settings`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
