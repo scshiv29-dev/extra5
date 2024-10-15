@@ -259,7 +259,6 @@ def update_database_status(name: str, new_status: str, db: Session = Depends(get
     db.refresh(db_instance)
 
     return {"message": f"Database status updated to {new_status}", "name": name}
-
 class UpdateSettingRequest(BaseModel):
     domain: str
 
@@ -282,7 +281,7 @@ def update_setting(setting: UpdateSettingRequest, db: Session = Depends(get_db))
 
         # Start container with updated label for new domain
         docker_client.containers.run(
-            "nextjs_app",  # Replace with the actual Next.js image name used in Docker Compose
+            "extra5_next-app:latest",  # Updated with the correct image name
             name="nextjs_app",
             ports={"3000/tcp": 3000},
             labels={
@@ -294,6 +293,8 @@ def update_setting(setting: UpdateSettingRequest, db: Session = Depends(get_db))
             detach=True,
             restart_policy={"Name": "always"}
         )
+    except docker.errors.ImageNotFound:
+        raise HTTPException(status_code=404, detail="Docker image 'extra5_next-app' not found")
     except docker.errors.APIError as e:
         raise HTTPException(status_code=500, detail=f"Failed to update Traefik: {str(e)}")
 

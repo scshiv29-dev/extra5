@@ -24,7 +24,7 @@ git clone https://github.com/scshiv29-dev/extra5.git
 REPO_NAME=$(basename "https://github.com/scshiv29-dev/extra5.git" .git)
 
 # Change directory to the cloned repository
-cd $REPO_NAME || { echo "Failed to change directory to cloned repository"; exit 1; }
+cd extra5 || { echo "Failed to change directory to cloned repository"; exit 1; }
 
 # Get the server's IP address
 SERVER_IP=$(hostname -I | awk '{print $1}')
