@@ -133,7 +133,7 @@ export default function DatabasePage() {
       case 'postgres':
         return `postgres://${username}:${password}@${host}:${port}/${databaseName}`
       case 'redis':
-        return `redis://:${password}@${host}:${port}/${databaseName}`
+        return `redis://:${password}@${host}:${port}/0`
       default:
         return null
     }
