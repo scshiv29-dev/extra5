@@ -9,6 +9,7 @@ class Setting(Base):
     domain = Column(String, unique=True, index=True)
     status = Column(String, default="not verified") 
 
+
 class DatabaseInstance(Base):
     __tablename__ = "databases"
 
