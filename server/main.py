@@ -282,7 +282,7 @@ def update_setting(setting: UpdateSettingRequest, db: Session = Depends(get_db))
 
         # Start container with updated label for new domain
         docker_client.containers.run(
-            "nextjs_app_image",  # Replace with the actual Next.js image name used in Docker Compose
+            "nextjs_app",  # Replace with the actual Next.js image name used in Docker Compose
             name="nextjs_app",
             ports={"3000/tcp": 3000},
             labels={
