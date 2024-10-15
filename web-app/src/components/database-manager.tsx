@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -48,7 +48,7 @@ const database_configs = {
   redis: {
     image: "redis:latest",
     internal_port: 6379,
-    required_env_vars: [],
+    required_env_vars: ["REDIS_PASSWORD"],
     optional_env_vars: [],
     cmd: []
   },
@@ -60,11 +60,6 @@ const database_configs = {
     cmd: []
   }
 }
-
-// Removed unnecessary arrays
-// const adjectives = ['happy', 'clever', 'brave', 'calm', 'eager', 'fair', 'kind', 'proud', 'wise', 'zesty']
-// const nouns = ['apple', 'bear', 'cat', 'dog', 'eagle', 'fox', 'goat', 'horse', 'iguana', 'jaguar']
-// const verbs = ['jumps', 'runs', 'flies', 'swims', 'dances', 'sings', 'laughs', 'dreams', 'thinks', 'creates']
 
 const nameConfig: Config = {
   dictionaries: [adjectives2, colors, animals],
@@ -91,6 +86,8 @@ export default function DatabaseManager() {
     env_vars: {}
   })
   const [isLoading, setIsLoading] = useState(false)
+  const [availablePorts, setAvailablePorts] = useState<number[]>([])
+  const [isFetchingPorts, setIsFetchingPorts] = useState(false)
 
   useEffect(() => {
     // Reset env_vars when db_type changes and generate random values
@@ -121,8 +118,35 @@ export default function DatabaseManager() {
       env_vars: newEnvVars,
       internal_port: config.internal_port
     }))
+
+    // Fetch available ports when db_type changes
+    fetchAvailablePorts(config.internal_port)
   }, [newDatabase.db_type])
 
+  const fetchAvailablePorts = useCallback(async (internalPort: number) => {
+    setIsFetchingPorts(true)
+    try {
+      const response = await fetch(`${API_BASE_URL}/get-free-ports/${internalPort}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+      })
+      if (!response.ok) throw new Error('Failed to fetch available ports')
+      const ports: number[] = await response.json()
+      setAvailablePorts(ports)
+      setNewDatabase(prev => ({ ...prev, user_port: ports[0] }))
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : 'Failed to fetch available ports',
+        variant: "destructive",
+      })
+    } finally {
+      setIsFetchingPorts(false)
+    }
+  }, [API_BASE_URL])
 
   const createDatabase = async () => {
     setIsLoading(true)
@@ -147,14 +171,13 @@ export default function DatabaseManager() {
     } catch (error) {
       toast({
         title: "Error",
-        description: error as string,
+        description: error instanceof Error ? error.message : 'Failed to create database',
         variant: "destructive",
       })
     } finally {
       setIsLoading(false)
     }
   }
-
 
   const handleEnvVarChange = (key: string, value: string) => {
     setNewDatabase(prev => ({
@@ -202,14 +225,20 @@ export default function DatabaseManager() {
               />
             </div>
             <div>
-              <Label htmlFor="user_port">User Port</Label>
-              <Input
-                id="user_port"
-                type="number"
-                value={newDatabase.user_port}
-                onChange={(e) => setNewDatabase({...newDatabase, user_port: parseInt(e.target.value)})}
-                disabled={isLoading}
-              />
+              <Label htmlFor="user_port">Public Port</Label>
+              <Select
+                onValueChange={(value) => setNewDatabase({...newDatabase, user_port: parseInt(value)})}
+                disabled={isLoading || isFetchingPorts}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={isFetchingPorts ? "Fetching free ports..." : "Select Public port"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {availablePorts.map((port) => (
+                    <SelectItem key={port} value={port.toString()}>{port}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <Label htmlFor="internal_port">Internal Port</Label>
@@ -218,7 +247,7 @@ export default function DatabaseManager() {
                 type="number"
                 value={newDatabase.internal_port || ''}
                 onChange={(e) => setNewDatabase({...newDatabase, internal_port: e.target.value ? parseInt(e.target.value) : null})}
-                disabled={isLoading}
+                disabled={true}
               />
             </div>
           </div>
