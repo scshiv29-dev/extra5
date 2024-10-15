@@ -30,7 +30,7 @@ type UpdateDatabaseRequest = {
 
 function constructConnectionString(dbType: string, envVars: Record<string, string>, userPort: number, internalPort: number): string {
   const host = extractServerIp(API_URL as string); // Use userPort as the host
-  const port = internalPort; // Use internalPort as the port
+  const port = userPort; // Use internalPort as the port
 
   switch (dbType.toLowerCase()) {
     case 'mysql':
