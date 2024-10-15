@@ -8,8 +8,9 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog"
 import { toast } from "@/hooks/use-toast"
-import { ToastAction } from "@/components/ui/toast"
-const API_BASE_URL = 'https://8000-scshiv29dev-extra5-ya3ucv0dc80.ws-us116.gitpod.io'
+import { API_URL } from '@/lib/api'
+
+const API_BASE_URL =API_URL
 
 type Database = {
   name: string
@@ -59,7 +60,7 @@ export default function DatabasePage() {
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to fetch database",
+        description: error as string,
         variant: "destructive",
         
       })
@@ -83,7 +84,7 @@ export default function DatabasePage() {
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to update database",
+        description: error as string,
         variant: "destructive",
       })
     }
@@ -105,7 +106,7 @@ export default function DatabasePage() {
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to update database status",
+        description: error as string,
         variant: "destructive",
       })
     }

@@ -1,0 +1,1 @@
+export const API_URL="https://zany-space-trout-6w5wj4p67jv2wrg-8000.app.github.dev"

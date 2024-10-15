@@ -4,20 +4,12 @@ import { useState, useEffect } from 'react'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { toast } from "@/hooks/use-toast"
-import Link from 'next/link'
-import { uniqueNamesGenerator, Config, adjectives as adjectives2, colors, animals } from 'unique-names-generator';
 
-type Database = {
-  name: string
-  db_type: string
-  user_port: number
-  status: string
-}
+import { uniqueNamesGenerator, Config, adjectives as adjectives2, colors, animals } from 'unique-names-generator';
+import { API_URL } from '@/lib/api'
 
 type DatabaseRequest = {
   db_type: string
@@ -27,7 +19,7 @@ type DatabaseRequest = {
   env_vars: Record<string, string>
 }
 
-const API_BASE_URL = 'https://8000-scshiv29dev-extra5-ya3ucv0dc80.ws-us116.gitpod.io'
+const API_BASE_URL = API_URL
 
 const database_configs = {
   mysql: {
@@ -88,7 +80,7 @@ function generateRandomString(length: number) {
 }
 
 export default function DatabaseManager() {
-  const [databases, setDatabases] = useState<Database[]>([])
+  
   const [newDatabase, setNewDatabase] = useState<DatabaseRequest>({
     db_type: 'mysql',
     name: generateRandomName(),
@@ -97,9 +89,7 @@ export default function DatabaseManager() {
     env_vars: {}
   })
 
-  useEffect(() => {
-    fetchDatabases()
-  }, [])
+
 
   useEffect(() => {
     // Reset env_vars when db_type changes and generate random values
@@ -132,26 +122,6 @@ export default function DatabaseManager() {
     }))
   }, [newDatabase.db_type])
 
-  const fetchDatabases = async () => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/databases`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-      })
-      if (!response.ok) throw new Error('Failed to fetch databases')
-      const data = await response.json()
-      setDatabases(data)
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to fetch databases",
-        variant: "destructive",
-      })
-    }
-  }
 
   const createDatabase = async () => {
     try {
@@ -162,7 +132,7 @@ export default function DatabaseManager() {
         credentials: 'include',
       })
       if (!response.ok) throw new Error('Failed to create database')
-      await fetchDatabases()
+   
       toast({
         title: "Success",
         description: "Database created successfully",
@@ -170,53 +140,12 @@ export default function DatabaseManager() {
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to create database",
+        description: error as string,
         variant: "destructive",
       })
     }
   }
 
-  const deleteDatabase = async (name: string) => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/databases/${name}`, {
-        method: 'DELETE',
-        credentials: 'include',
-      })
-      if (!response.ok) throw new Error('Failed to delete database')
-      await fetchDatabases()
-      toast({
-        title: "Success",
-        description: "Database deleted successfully",
-      })
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to delete database",
-        variant: "destructive",
-      })
-    }
-  }
-
-  const updateDatabaseStatus = async (name: string, newStatus: string) => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/databases/${name}/status?new_status=${newStatus}`, {
-        method: 'PUT',
-        credentials: 'include',
-      })
-      if (!response.ok) throw new Error('Failed to update database status')
-      await fetchDatabases()
-      toast({
-        title: "Success",
-        description: "Database status updated successfully",
-      })
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to update database status",
-        variant: "destructive",
-      })
-    }
-  }
 
   const handleEnvVarChange = (key: string, value: string) => {
     setNewDatabase(prev => ({

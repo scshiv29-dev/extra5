@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
+import { API_URL } from '@/lib/api'
 
 type Database = {
   name: string
@@ -11,7 +12,7 @@ type Database = {
   user_port: number
   status: string
 }
-
+const API_BASE_URL=API_URL
 export default function Dashboard() {
   const [databases, setDatabases] = useState<Database[]>([])
 
@@ -21,7 +22,7 @@ export default function Dashboard() {
 
   const fetchDatabases = async () => {
     try {
-      const response = await fetch('https://8000-scshiv29dev-extra5-ya3ucv0dc80.ws-us116.gitpod.io/databases')
+      const response = await fetch(`${API_BASE_URL}/databases`)
       if (!response.ok) throw new Error('Failed to fetch databases')
       const data = await response.json()
       setDatabases(data)
