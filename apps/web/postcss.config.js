@@ -1,1 +1,0 @@
-module.exports = require("@flexidb/config/postcss.config.js");

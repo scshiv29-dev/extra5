@@ -1,0 +1,14 @@
+version: '3.9'
+
+services:
+  app:
+    build:
+      context: ./server  # Points to the server folder where Dockerfile exists
+      dockerfile: Dockerfile
+    container_name: fastapi_app
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - "8000:8000"
+    environment:
+      - SQLALCHEMY_DATABASE_URL=sqlite:///./test.db
