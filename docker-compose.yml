@@ -9,6 +9,40 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     ports:
-      - "8000:8000"
+      - "8000:8000"  # Expose FastAPI app port
     environment:
       - SQLALCHEMY_DATABASE_URL=sqlite:///./test.db
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.fastapi-app.rule=Host(`api.localhost`)"
+      - "traefik.http.services.fastapi-app.loadbalancer.server.port=8000"
+
+  next-app:
+    build:
+      context: ./web-app  # Points to the web-app folder where your Next.js app exists
+    container_name: nextjs_app
+    ports:
+      - "3000:3000"  # Expose Next.js app port
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.nextjs-app.rule=Host(`localhost`)"
+      - "traefik.http.services.nextjs-app.loadbalancer.server.port=3000"
+
+  traefik:
+    image: traefik:v2.9
+    container_name: traefik
+    command:
+      - "--api.insecure=true"  # Enable Traefik dashboard for development
+      - "--providers.docker=true"  # Enable Docker as a provider
+      - "--entrypoints.web.address=:80"  # Define entrypoint for HTTP traffic
+    ports:
+      - "80:80"  # HTTP entrypoint for accessing services
+      - "8080:8080"  # Traefik dashboard
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock  # Allow Traefik to interact with Docker
+    labels:
+      - "traefik.enable=true"
+
+networks:
+  default:
+    name: traefik_network
