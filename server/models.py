@@ -2,6 +2,12 @@ from sqlalchemy import Column, Integer, String, DateTime, JSON
 from sqlalchemy.sql import func
 from database import Base
 
+
+class Setting(Base):
+    __tablename__ = "settings"
+    id = Column(Integer, primary_key=True, index=True)
+    domain = Column(String, unique=True, index=True)
+
 class DatabaseInstance(Base):
     __tablename__ = "databases"
 

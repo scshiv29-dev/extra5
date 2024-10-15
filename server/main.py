@@ -7,7 +7,7 @@ import socket
 from typing import Optional, Dict, Any
 import os
 from database import SessionLocal, engine
-from models import Base, DatabaseInstance
+from models import Base, DatabaseInstance ,Setting
 from typing import List
 
 # Create the database tables
@@ -327,3 +327,20 @@ def update_database(name: str, update_request: UpdateDatabaseRequest, db: Sessio
     db.refresh(db_instance)
 
     return {"message": "Database container updated successfully", "id": container.id, "port": user_port}
+
+
+
+class UpdateSettingRequest(BaseModel):
+    domain: str
+
+@app.put("/settings")
+def update_setting(setting: UpdateSettingRequest, db: Session = Depends(get_db)):
+    db_setting = db.query(Setting).first()
+    if db_setting is None:
+        db_setting = Setting(domain=setting.domain)
+        db.add(db_setting)
+    else:
+        db_setting.domain = setting.domain
+    db.commit()
+    db.refresh(db_setting)
+    return db_setting
