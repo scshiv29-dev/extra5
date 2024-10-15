@@ -1,8 +1,7 @@
-from sqlalchemy import Column, Integer, String
-from sqlalchemy.orm import Session
+from sqlalchemy import Column, Integer, String, create_engine
+from sqlalchemy.orm import Session, sessionmaker
 from fastapi import FastAPI, HTTPException, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
-from starlette.middleware.cors import CORSMiddleware as StarletteCORSMiddleware
 from pydantic import BaseModel
 import docker
 import dns.resolver
