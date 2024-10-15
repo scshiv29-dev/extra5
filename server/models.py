@@ -7,6 +7,7 @@ class Setting(Base):
     __tablename__ = "settings"
     id = Column(Integer, primary_key=True, index=True)
     domain = Column(String, unique=True, index=True)
+    status = Column(String, default="not verified") 
 
 class DatabaseInstance(Base):
     __tablename__ = "databases"

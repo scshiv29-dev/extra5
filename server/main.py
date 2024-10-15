@@ -94,7 +94,10 @@ database_configs = {
 }
 @app.post("/databases")
 def create_database(db_request: DatabaseRequest, db: Session = Depends(get_db)):
+    print("Received database creation request:", db_request.dict())
     db_type = db_request.db_type.lower()
+    
+        
     if db_type not in database_configs:
         raise HTTPException(status_code=400, detail="Unsupported database type.")
 
@@ -333,14 +336,25 @@ def update_database(name: str, update_request: UpdateDatabaseRequest, db: Sessio
 class UpdateSettingRequest(BaseModel):
     domain: str
 
-@app.put("/settings")
-def update_setting(setting: UpdateSettingRequest, db: Session = Depends(get_db)):
-    db_setting = db.query(Setting).first()
+@app.put("/settings/1")
+def update_setting(id: int, setting: UpdateSettingRequest, db: Session = Depends(get_db)):
+    db_setting = db.query(Setting).filter(Setting.id == id).first()
     if db_setting is None:
-        db_setting = Setting(domain=setting.domain)
-        db.add(db_setting)
-    else:
-        db_setting.domain = setting.domain
+        raise HTTPException(status_code=404, detail="Setting not found")
+
+    db_setting.domain = setting.domain
+
+    # Check if the domain points to the server
+    server_ip = docker_client.api.inspect_container("traefik")['NetworkSettings']['IPAddress']
+    try:
+        domain_ips = dns.resolver.resolve(setting.domain, 'A')
+        verified = any(str(ip) == server_ip for ip in domain_ips)
+        db_setting.status = "verified" if verified else "not verified"
+    except dns.resolver.NXDOMAIN:
+        db_setting.status = "not verified"
+    except dns.resolver.NoAnswer:
+        db_setting.status = "not verified"
+
     db.commit()
     db.refresh(db_setting)
 
