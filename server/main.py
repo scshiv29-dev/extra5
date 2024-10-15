@@ -7,6 +7,7 @@ import docker
 import dns.resolver
 from models import Base
 # Create the database tables
+from database import SessionLocal, engine
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
