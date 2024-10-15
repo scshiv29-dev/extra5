@@ -15,13 +15,17 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 docker_client = docker.from_env()
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins - Use with caution, especially in production
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+
+@app.middleware("http")
+async def add_cors_headers(request: Request, call_next):
+    response = await call_next(request)
+    origin = request.headers.get('origin')
+    if origin:
+        response.headers['Access-Control-Allow-Origin'] = origin
+        response.headers['Access-Control-Allow-Credentials'] = 'true'
+        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+        response.headers['Access-Control-Allow-Headers'] = 'Authorization, Content-Type'
+    return response
 
 # Dependency to get the database session
 def get_db():
