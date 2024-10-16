@@ -2,7 +2,7 @@
 
 import { API_URL } from '@/lib/api';
 import { useState } from 'react';
-import { useRouter } from 'next/router';
+import { useRouter } from 'next/navigation';
 
 export default function LoginPage() {
     const [username, setUsername] = useState('');

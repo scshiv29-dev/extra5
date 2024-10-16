@@ -380,6 +380,10 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 30
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # User registration
+
+class UserRegisterRequest(BaseModel):
+    username: str
+    password: str
 @app.post("/register")
 def register(username: str, password: str, db: Session = Depends(get_db)):
     if db.query(User).filter(User.username == username).first():
@@ -393,10 +397,14 @@ def register(username: str, password: str, db: Session = Depends(get_db)):
     return {"msg": "User created successfully"}
 
 # User authentication
+class UserLoginRequest(BaseModel):
+    username: str
+    password: str
+
 @app.post("/token")
-def login(username: str, password: str, response: Response, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.username == username).first()
-    if not user or not pwd_context.verify(password, user.hashed_password):
+def login(user_request: UserLoginRequest, response: Response, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.username == user_request.username).first()
+    if not user or not pwd_context.verify(user_request.password, user.hashed_password):
         raise HTTPException(status_code=400, detail="Invalid credentials")
     
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
