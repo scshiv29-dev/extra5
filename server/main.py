@@ -1,14 +1,17 @@
 from sqlalchemy.orm import Session
-from fastapi import FastAPI, HTTPException, Depends, Request, Path
+from fastapi import FastAPI, HTTPException, Depends, Request, Path, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 import docker
 import dns.resolver
 from typing import Optional, Dict, Any, List, Union
 import socket
-from models import Setting, DatabaseInstance
+from models import Setting, DatabaseInstance,User
 from database import SessionLocal, engine , Base
 from datetime import datetime
+from passlib.context import CryptContext
+from jose import JWTError, jwt
+from datetime import datetime, timedelta
 
 # Create the database tables
 Base.metadata.create_all(bind=engine)
@@ -368,3 +371,59 @@ def update_setting(setting: UpdateSettingRequest, db: Session = Depends(get_db))
         raise HTTPException(status_code=500, detail=f"Failed to update Traefik: {str(e)}")
 
     return db_setting
+
+# Add these lines
+SECRET_KEY = "UNbqZdxeNT5Cu9eZ"  # Change this to a secure random key
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 30
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+# User registration
+@app.post("/register")
+def register(username: str, password: str, db: Session = Depends(get_db)):
+    if db.query(User).filter(User.username == username).first():
+        raise HTTPException(status_code=400, detail="Username already exists")
+    
+    hashed_password = pwd_context.hash(password)
+    user = User(username=username, hashed_password=hashed_password)
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return {"msg": "User created successfully"}
+
+# User authentication
+@app.post("/token")
+def login(username: str, password: str, response: Response, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.username == username).first()
+    if not user or not pwd_context.verify(password, user.hashed_password):
+        raise HTTPException(status_code=400, detail="Invalid credentials")
+    
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(data={"sub": user.username}, expires_delta=access_token_expires)
+    
+    # Set the token in an HttpOnly cookie
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        expires=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        secure=True,  # Set to True if using HTTPS
+        samesite="Lax"  # Adjust based on your needs
+    )
+    return {"msg": "Login successful"}
+
+def create_access_token(data: dict, expires_delta: timedelta = None):
+    to_encode = data.copy()
+    if expires_delta:
+        expire = datetime.utcnow() + expires_delta
+    else:
+        expire = datetime.utcnow() + timedelta(minutes=15)
+    to_encode.update({"exp": expire})
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+@app.post("/logout")
+def logout(response: Response):
+    response.delete_cookie(key="access_token")
+    return {"msg": "Logout successful"}

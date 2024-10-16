@@ -21,3 +21,11 @@ class DatabaseInstance(Base):
     status = Column(String, index=True)
     env_vars = Column(JSON, default={})  # Add this line to store environment variables
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String, unique=True, index=True)
+    hashed_password = Column(String)
