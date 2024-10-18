@@ -12,12 +12,37 @@ from datetime import datetime
 from passlib.context import CryptContext
 from jose import JWTError, jwt
 from datetime import datetime, timedelta
-
+from auth import authenticate_user , verify_password
+from fastapi.security import OAuth2PasswordBearer
+'''python -m uvicorn main:app --port "8000" --reload'''
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 # Create the database tables
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 docker_client = docker.from_env()
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+
+# Constants for JWT
+SECRET_KEY = "HNwueromi1cju0rznRYPm4RvyNr6YDQ+nRHoiKr2wCA="
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 30
+
+
+
+def init_db():
+    Base.metadata.create_all(bind=engine)
+    session = SessionLocal()
+
+    # Check if admin user exists
+    admin_user = session.query(User).filter(User.username == "admin").first()
+    if not admin_user:
+        hashed_password = pwd_context.hash("flexidb@123")
+        new_user = User(username="admin", hashed_password=hashed_password)
+        session.add(new_user)
+        session.commit()
+
+    session.close()
 
 app.add_middleware(
     CORSMiddleware,
@@ -69,6 +94,10 @@ def get_available_port(start_port: int) -> int:
         port += 1
     raise RuntimeError("No available ports found.")
 
+@app.on_event("startup")
+def startup_event():
+    # Initialize the database with the default admin user
+    init_db()
 
 # Database configurations for supported databases
 database_configs = {
@@ -334,6 +363,8 @@ def update_database_status(name: str, new_status: str, db: Session = Depends(get
 class UpdateSettingRequest(BaseModel):
     domain: str
 
+
+
 @app.post("/settings")
 def update_setting(setting: UpdateSettingRequest, db: Session = Depends(get_db)):
     db_setting = db.query(Setting).first()
@@ -372,55 +403,13 @@ def update_setting(setting: UpdateSettingRequest, db: Session = Depends(get_db))
 
     return db_setting
 
-# Add these lines
-SECRET_KEY = "UNbqZdxeNT5Cu9eZ"  # Change this to a secure random key
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-# User registration
-
-class UserRegisterRequest(BaseModel):
-    username: str
-    password: str
-@app.post("/register")
-def register(username: str, password: str, db: Session = Depends(get_db)):
-    if db.query(User).filter(User.username == username).first():
-        raise HTTPException(status_code=400, detail="Username already exists")
     
-    hashed_password = pwd_context.hash(password)
-    user = User(username=username, hashed_password=hashed_password)
-    db.add(user)
-    db.commit()
-    db.refresh(user)
-    return {"msg": "User created successfully"}
-
-# User authentication
 class UserLoginRequest(BaseModel):
     username: str
     password: str
 
-@app.post("/token")
-def login(user_request: UserLoginRequest, response: Response, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.username == user_request.username).first()
-    if not user or not pwd_context.verify(user_request.password, user.hashed_password):
-        raise HTTPException(status_code=400, detail="Invalid credentials")
-    
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(data={"sub": user.username}, expires_delta=access_token_expires)
-    
-    # Set the token in an HttpOnly cookie
-    response.set_cookie(
-        key="access_token",
-        value=access_token,
-        httponly=True,
-        max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-        expires=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-        secure=True,  # Set to True if using HTTPS
-        samesite="Lax"  # Adjust based on your needs
-    )
-    return {"msg": "Login successful"}
+
 
 def create_access_token(data: dict, expires_delta: timedelta = None):
     to_encode = data.copy()
@@ -431,6 +420,29 @@ def create_access_token(data: dict, expires_delta: timedelta = None):
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
+# Login endpoint (generates token and sets cookie)
+@app.post("/login")
+def login(user_request: UserLoginRequest, response: Response, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.username == user_request.username).first()
+    if not user or not pwd_context.verify(user_request.password, user.hashed_password):
+        raise HTTPException(status_code=400, detail="Invalid credentials")
+
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(data={"sub": user.username}, expires_delta=access_token_expires)
+
+    # Set the token in an HttpOnly cookie
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        expires=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        secure=True,  # Set to True if using HTTPS
+        samesite="Lax"  # Adjust based on your needs (can be "Strict" or "None")
+    )
+    return {"msg": "Login successful"}
+
+# Logout endpoint (removes token cookie)
 @app.post("/logout")
 def logout(response: Response):
     response.delete_cookie(key="access_token")

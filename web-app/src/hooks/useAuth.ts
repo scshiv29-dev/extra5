@@ -1,22 +1,25 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { API_URL } from '@/lib/api';
+import Cookies from 'js-cookie';
 
 export const useAuth = () => {
     const router = useRouter();
 
     useEffect(() => {
-        const checkAuth = async () => {
-            const response = await fetch(`${API_URL}/users/me`, {
-                method: 'GET',
-                credentials: 'include', // Include cookies in the request
-            });
-
-            if (!response.ok) {
-                router.push('/login'); // Redirect to login if not authenticated
+        const checkAuth = () => {
+            const token = Cookies.get('access_token');
+            if (!token) {
+                router.push('/login');
             }
         };
 
         checkAuth();
     }, [router]);
+
+    const logout = () => {
+        Cookies.remove('access_token');
+        router.push('/login');
+    };
+
+    return { logout };
 };
