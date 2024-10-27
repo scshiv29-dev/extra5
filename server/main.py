@@ -6,14 +6,45 @@ import docker
 import dns.resolver
 from typing import Optional, Dict, Any, List, Union
 import socket
-from models import Setting, DatabaseInstance
+from models import Setting, DatabaseInstance, User
 from database import SessionLocal, engine , Base
 from datetime import datetime
 
 # Create the database tables
 Base.metadata.create_all(bind=engine)
 
+from .routers import auth
+from .dependencies import get_current_user
+
+
 app = FastAPI()
+
+# Include auth router
+app.include_router(auth.router, tags=["auth"])
+
+# Add authentication dependency to all routes except auth
+@app.middleware("http")
+async def authenticate_requests(request: Request, call_next):
+    if request.url.path.startswith("/token"):
+        return await call_next(request)
+        
+    return await call_next(request)
+
+# Initialize admin user if not exists
+@app.on_event("startup")
+async def create_admin_user():
+    db = SessionLocal()
+    try:
+        admin = db.query(User).filter(User.username == "admin").first()
+        if not admin:
+            admin = User(
+                username="admin",
+                password=get_password_hash("admin")
+            )
+            db.add(admin)
+            db.commit()
+    finally:
+        db.close()
 docker_client = docker.from_env()
 
 app.add_middleware(
@@ -95,7 +126,7 @@ database_configs = {
         "internal_port": 6379,
         "required_env_vars": [],
         "optional_env_vars": [],
-        "cmd": []
+        "cmd": [] 
     },
     "mariadb": {
         "image": "mariadb:latest",
@@ -161,7 +192,11 @@ def get_free_ports(
     return free_ports
 
 @app.post("/databases")
-def create_database(db_request: DatabaseRequest, db: Session = Depends(get_db)):
+def create_database(
+    db_request: DatabaseRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
     print("Received database creation request:", db_request.dict())
     db_type = db_request.db_type.lower()
 

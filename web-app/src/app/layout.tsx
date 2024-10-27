@@ -3,6 +3,7 @@ import "./globals.css";
 
 import DashboardLayout from '@/components/dashboard-layout'
 import { Toaster } from "@/components/ui/toaster";
+import { AuthProvider } from '@/contexts/auth-context'
 
 export const metadata: Metadata = {
   title: "Flexidb",
@@ -14,10 +15,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body>
-        <DashboardLayout>{children}
+        <AuthProvider>
+          <DashboardLayout>{children}
 
-        <Toaster />
-        </DashboardLayout>
+          <Toaster />
+          </DashboardLayout>
+        </AuthProvider>
       </body>
     </html>
   )
